@@ -1,0 +1,111 @@
+version: "3.9"
+
+# ── Recommended: t3.small (2 vCPU, 2GB RAM) ~$15/mo ─────────────────────────
+# All services run comfortably with memory to spare.
+# Run: docker compose up -d
+
+services:
+  api:
+    build: .
+    container_name: competitor-api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    ports:
+      - "8000:8000"
+    networks:
+      - intel-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    mem_limit: 512m
+
+  streamlit:
+    build: .
+    container_name: competitor-ui
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - API_BASE_URL=http://api:8000
+    volumes:
+      - ./config:/app/config
+    ports:
+      - "8501:8501"
+    command: >
+      streamlit run streamlit_app.py
+      --server.port=8501
+      --server.address=0.0.0.0
+      --server.headless=true
+      --browser.gatherUsageStats=false
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - intel-net
+    mem_limit: 400m
+
+  nginx:
+    image: nginx:1.26-alpine
+    container_name: competitor-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - streamlit
+    networks:
+      - intel-net
+    mem_limit: 64m
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: competitor-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    networks:
+      - intel-net
+    mem_limit: 256m
+
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: competitor-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_SECURITY_SECRET_KEY=${GRAFANA_SECRET_KEY:-changeme}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - intel-net
+    mem_limit: 256m
+
+networks:
+  intel-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
