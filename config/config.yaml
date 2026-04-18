@@ -1,0 +1,129 @@
+# ============================================================
+# COMPETITOR INTELLIGENCE AGENT — MASTER CONFIG v2.0
+# ============================================================
+
+app:
+  name: "Competitor Intelligence Agent"
+  version: "2.0.0"
+  poll_interval_minutes: 30
+  timezone: "Asia/Kolkata"
+  ads_window_days: 30
+
+competitors:
+  - name: "OpenAI"
+    rss_feeds:
+      - "https://openai.com/blog/rss.xml"
+    youtube_channel_id: "UCXZCJLdBC09xxGZ6gcdrc6A"
+    reddit_rss:
+      - "https://www.reddit.com/r/OpenAI/.rss"
+      - "https://www.reddit.com/r/ChatGPT/.rss"
+    meta_ad_queries:
+      - "OpenAI"
+      - "ChatGPT"
+    meta_fb_page_id: "434609730060978"
+    meta_ad_country: "IN"
+    serp_queries:
+      - "OpenAI news"
+      - "ChatGPT update"
+      - "OpenAI product launch"
+
+  # Uncomment to add more competitors:
+  # - name: "Google DeepMind"
+  #   rss_feeds:
+  #     - "https://deepmind.google/blog/rss.xml"
+  #   youtube_channel_id: ""
+  #   reddit_rss:
+  #     - "https://www.reddit.com/r/Gemini/.rss"
+  #   meta_ad_queries:
+  #     - "Google Gemini"
+  #     - "DeepMind"
+  #   meta_ad_country: "IN"
+  #   serp_queries:
+  #     - "DeepMind research"
+  #     - "Gemini AI news"
+
+  # - name: "Perplexity AI"
+  #   rss_feeds:
+  #     - "https://www.perplexity.ai/hub/rss.xml"
+  #   reddit_rss:
+  #     - "https://www.reddit.com/r/perplexity_ai/.rss"
+  #   meta_ad_queries:
+  #     - "Perplexity AI"
+  #   meta_ad_country: "IN"
+  #   serp_queries:
+  #     - "Perplexity AI news"
+  #     - "Perplexity search engine"
+
+  # - name: "Anthropic"
+  #   rss_feeds:
+  #     - "https://www.anthropic.com/news/rss"
+  #   reddit_rss:
+  #     - "https://www.reddit.com/r/ClaudeAI/.rss"
+  #   meta_ad_queries:
+  #     - "Anthropic Claude"
+  #   meta_ad_country: "IN"
+  #   serp_queries:
+  #     - "Anthropic news"
+  #     - "Claude AI update"
+
+  # - name: "Mistral AI"
+  #   rss_feeds:
+  #     - "https://mistral.ai/news/rss.xml"
+  #   reddit_rss:
+  #     - "https://www.reddit.com/r/mistralai/.rss"
+  #   meta_ad_queries:
+  #     - "Mistral AI"
+  #   meta_ad_country: "IN"
+  #   serp_queries:
+  #     - "Mistral AI news"
+
+apis:
+  groq:
+    model: "llama-3.1-8b-instant"
+    max_tokens: 1024
+    temperature: 0.1
+  youtube:
+    max_results: 10
+  reddit:
+    use_rss: true
+  serpapi:
+    enabled: true
+    keywords_per_competitor: 5
+
+alerts:
+  email:
+    enabled: true
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+  slack:
+    enabled: false
+  triggers:
+    new_blog_post: true
+    new_youtube_video: true
+    new_reddit_mention_threshold: 5
+    new_ad_detected: true
+    sentiment_drop_threshold: -0.3
+    serp_min_trend_score: 0.5
+
+mlflow:
+  experiment_name: "competitor-intelligence"
+  log_every_run: true
+  metrics_to_log:
+    - "blog_posts_found"
+    - "youtube_videos_found"
+    - "reddit_mentions"
+    - "avg_sentiment"
+    - "ads_found"
+    - "serp_results_found"
+    - "agent_latency_ms"
+    - "total_tokens_used"
+
+evaluation:
+  enabled: true
+  run_every_n_polls: 6
+
+database:
+  url: "sqlite:///./data/competitor.db"
+
+logging:
+  level: "INFO"
