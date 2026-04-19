@@ -1,7 +1,7 @@
-"""
-Competitor Intelligence API — FastAPI backend.
-Serves all dashboard data with explicit dict serialization.
-"""
+
+# Competitor Intelligence API — FastAPI backend.
+# Serves all dashboard data with explicit dict serialization.
+
 import logging
 import asyncio
 from contextlib import asynccontextmanager
@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 from prometheus_fastapi_instrumentator import Instrumentator
+from app.core.aws_secrets import load_aws_secrets
 
 load_dotenv()
 
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    load_aws_secrets() #aws secrets might have rotated while the app was running, so we reload them on each startup
     init_db()
     try:
         setup_mlflow()
