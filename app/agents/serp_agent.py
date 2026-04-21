@@ -116,17 +116,19 @@ def _enrich_top(items: list[dict], competitor: str, max_enrich: int = 3) -> int:
             "Competitive intelligence analyst. Analyse this " + rtype + " about " + competitor + ".\n"
             "Title: " + title + "\n"
             "Snippet: " + snippet + "\n"
-            "Return JSON only with keys: summary, key_insights, why_it_matters, strategy_insight"
+            "Return JSON only. All values must be plain strings — no lists, no nested objects.\n"
+            "Keys: summary (1 sentence), key_insights (2-3 points as one string separated by ' | '), "
+            "why_it_matters (1 sentence), strategy_insight (1 sentence)"
         )
 
         result, tokens = call_llm(prompt, max_tokens=250, json_mode=True)
         total_tokens += tokens
 
         if result:
-            item["summary"]          = result.get("summary", item["summary"])
-            item["key_insights"]     = result.get("key_insights", item["key_insights"])
-            item["why_it_matters"]   = result.get("why_it_matters", "")
-            item["strategy_insight"] = result.get("strategy_insight", "")
+            item["summary"]          = _to_str(result.get("summary", item["summary"]))
+            item["key_insights"]     = _to_str(result.get("key_insights", item["key_insights"]))
+            item["why_it_matters"]   = _to_str(result.get("why_it_matters", ""))
+            item["strategy_insight"] = _to_str(result.get("strategy_insight", ""))
 
         time.sleep(0.3)  # small pause between LLM calls to respect rate limits
 
@@ -230,6 +232,17 @@ def _fetch_trending(query: str, api_key: str) -> list[dict]:
 
 # ── Persist ───────────────────────────────────────────────────────────────────
 
+def _to_str(value) -> str:
+    """Coerce any LLM output (list, dict, or str) to a plain string."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return " | ".join(str(v) for v in value if v)
+    if isinstance(value, dict):
+        return " | ".join(f"{k}: {v}" for k, v in value.items() if v)
+    return str(value) if value else ""
+
+
 def _save_result(item: dict, competitor: str, db: Session, seen_urls: set) -> bool:
     url = item.get("url", "").strip()
     if not url:
@@ -247,9 +260,9 @@ def _save_result(item: dict, competitor: str, db: Session, seen_urls: set) -> bo
         url             = url[:1000],
         snippet         = item.get("snippet", "")[:2000],
         source          = item.get("source", "")[:200],
-        summary         = item.get("summary", ""),
-        key_insights    = item.get("key_insights", ""),
-        why_it_matters  = item.get("why_it_matters", ""),
+        summary         = _to_str(item.get("summary", "")),
+        key_insights    = _to_str(item.get("key_insights", "")),
+        why_it_matters  = _to_str(item.get("why_it_matters", "")),
         category        = item.get("category", "other"),
         trend_score     = float(item.get("trend_score", 0.3)),
         importance      = item.get("importance", "medium"),
