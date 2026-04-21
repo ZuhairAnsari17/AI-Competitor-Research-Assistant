@@ -11,9 +11,6 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright chromium for Meta Ads scraping
-RUN pip install playwright && playwright install chromium --with-deps || true
-
 # Copy app
 COPY . .
 

@@ -15,11 +15,10 @@ from app.core.tracking import setup_mlflow
 from app.agents.blog_agent import run_blog_agent
 from app.agents.youtube_agent import run_youtube_agent
 from app.agents.reddit_agent import run_reddit_agent
-from app.agents.meta_ads_agent import run_meta_ads_agent
 from app.agents.serp_agent import run_serp_agent
 from app.agents.alert_service import (
     alert_new_blog_post, alert_new_youtube_video,
-    alert_new_ad, alert_new_serp_result, flush_digest,
+    alert_new_serp_result, flush_digest,
 )
 from app.evaluator.evaluator import run_evaluation
 
@@ -45,7 +44,6 @@ async def run_all_agents():
             await _run_agent(db, "blog_monitor",     name, lambda c=competitor: run_blog_agent(c, db),     "new_posts",         lambda r, n=name: _alert_blogs(db, n))
             await _run_agent(db, "youtube_monitor",  name, lambda c=competitor: run_youtube_agent(c, db),  "new_videos",        lambda r, n=name: _alert_videos(db, n))
             await _run_agent(db, "reddit_monitor",   name, lambda c=competitor: run_reddit_agent(c, db),   "mentions")
-            await _run_agent(db, "meta_ads_monitor", name, lambda c=competitor: run_meta_ads_agent(c, db), "new_ads",           lambda r, n=name: _alert_ads(db, n))
             await _run_agent(db, "serp_monitor",     name, lambda c=competitor: run_serp_agent(c, db),     "serp_results_found", lambda r, n=name: _alert_serp(db, n))
 
             # One digest email per competitor covering all platforms
@@ -126,21 +124,6 @@ def _alert_videos(db, name):
     db.commit()
 
 
-def _alert_ads(db, name):
-    from app.core.database import MetaAd
-    rows = db.query(MetaAd).filter_by(competitor=name, alerted=False).all()
-    for ad in rows:
-        plats = ad.platforms or ["facebook"]
-        alert_new_ad(
-            competitor=name, ad_id=ad.ad_id,
-            body_preview=ad.ad_creative_body or "",
-            headline=ad.headline or "", cta=ad.cta or "",
-            platform=plats[0] if plats else "facebook",
-            landing_url=ad.landing_url or "",
-            ad_type=ad.ad_type or "", ad_summary=ad.ad_summary or "",
-        )
-        ad.alerted = True
-    db.commit()
 
 
 def _alert_serp(db, name):

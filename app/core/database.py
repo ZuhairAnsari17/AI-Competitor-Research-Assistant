@@ -69,24 +69,6 @@ class RedditMention(Base):
     detected_at     = Column(DateTime, default=datetime.utcnow)
 
 
-class MetaAd(Base):
-    __tablename__ = "meta_ads"
-    id                  = Column(Integer, primary_key=True)
-    competitor          = Column(String(100), index=True)
-    ad_id               = Column(String(100), unique=True)
-    ad_creative_body    = Column(Text)
-    headline            = Column(String(500))
-    description         = Column(Text)
-    cta                 = Column(String(100))
-    landing_url         = Column(String(1000))
-    page_name           = Column(String(200))
-    ad_type             = Column(String(50))
-    ad_summary          = Column(Text)
-    delivery_start_time = Column(DateTime)
-    platforms           = Column(JSON)
-    source              = Column(String(20), default="meta_api")
-    detected_at         = Column(DateTime, default=datetime.utcnow)
-    alerted             = Column(Boolean, default=False)
 
 
 class SerpResult(Base):

@@ -17,11 +17,11 @@ competitors:
     reddit_rss:
       - "https://www.reddit.com/r/OpenAI/.rss"
       - "https://www.reddit.com/r/ChatGPT/.rss"
-    meta_ad_queries:
+    # meta_ad_queries: removed
       - "OpenAI"
       - "ChatGPT"
-    meta_fb_page_id: "434609730060978"
-    meta_ad_country: "IN"
+    # meta_fb_page_id: removed
+    # meta_ad_country: removed
     serp_queries:
       - "OpenAI news"
       - "ChatGPT update"

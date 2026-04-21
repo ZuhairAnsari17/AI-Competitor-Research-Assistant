@@ -22,12 +22,13 @@ from app.core.config import (
 )
 from app.core.database import (
     init_db, get_db, BlogPost, YouTubeVideo,
-    RedditMention, MetaAd, SerpResult, AgentRun, EvalResult,
+    RedditMention, SerpResult, AgentRun, EvalResult,
 )
 from app.core.scheduler import start_scheduler, stop_scheduler, run_all_agents
 from app.core.tracking import setup_mlflow
+from app.core.logging_config import setup_logging
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -83,7 +84,6 @@ def summary(db: Session = Depends(get_db)):
     c = get_config()
     since_7d  = datetime.utcnow() - timedelta(days=7)
     since_30d = datetime.utcnow() - timedelta(days=30)
-    since_ads = datetime.utcnow() - timedelta(days=c.get("ads_window_days", 30))
     names     = get_active_competitor_names()
 
     def cnt(model, since):
@@ -115,7 +115,7 @@ def summary(db: Session = Depends(get_db)):
         "Blog":    cnt(BlogPost, since_7d),
         "YouTube": cnt(YouTubeVideo, since_7d),
         "Reddit":  cnt(RedditMention, since_7d),
-        "Ads":     cnt(MetaAd, since_7d),
+        "Ads":     0,
         "SerpAPI": cnt(SerpResult, since_7d),
     }
     most_active_platform = max(platform_counts, key=platform_counts.get) if platform_counts else "—"
@@ -125,8 +125,7 @@ def summary(db: Session = Depends(get_db)):
         "blog_posts_30d":      cnt(BlogPost, since_30d),
         "youtube_videos_7d":   platform_counts["YouTube"],
         "reddit_mentions_7d":  platform_counts["Reddit"],
-        "ads_detected_7d":     platform_counts["Ads"],
-        "ads_detected_30d":    cnt(MetaAd, since_ads),
+        "ads_detected_7d":     0,
         "serp_results_7d":     platform_counts["SerpAPI"],
         "competitors_tracked": len(get_competitors()),
         "last_poll":           last_run,
@@ -232,36 +231,6 @@ def reddit_mentions(
     ]
 
 
-# ── Ads ────────────────────────────────────────────────────────────────────────
-
-@app.get("/api/ads", tags=["Content"])
-def meta_ads(
-    competitor: str = None, limit: int = Query(50, le=500),
-    db: Session = Depends(get_db),
-):
-    q = db.query(MetaAd).order_by(desc(MetaAd.detected_at))
-    q = _active_filter(q, MetaAd)
-    if competitor:
-        q = q.filter(MetaAd.competitor == competitor)
-    rows = q.limit(limit).all()
-    return [
-        {
-            "id": r.id, "competitor": r.competitor, "ad_id": r.ad_id,
-            "ad_creative_body": r.ad_creative_body or "",
-            "headline":    r.headline or "",
-            "description": r.description or "",
-            "cta":         r.cta or "",
-            "landing_url": r.landing_url or "",
-            "page_name":   r.page_name or r.competitor or "",
-            "ad_type":     r.ad_type or "",
-            "ad_summary":  r.ad_summary or "",
-            "platforms":   r.platforms if isinstance(r.platforms, list) else ["facebook"],
-            "source":      r.source or "unknown",
-            "delivery_start_time": r.delivery_start_time.isoformat() if r.delivery_start_time else None,
-            "detected_at": r.detected_at.isoformat() if r.detected_at else None,
-        }
-        for r in rows
-    ]
 
 
 # ── SerpAPI Results ────────────────────────────────────────────────────────────
@@ -372,7 +341,6 @@ def list_competitors():
             "has_rss":          bool(c.get("rss_feeds")),
             "has_youtube":      bool(c.get("youtube_channel_id", "").strip()),
             "has_reddit":       bool(c.get("reddit_rss")),
-            "has_meta_ads":     bool(c.get("meta_ad_queries")),
             "has_serp":         bool(c.get("serp_queries")),
             "youtube_channel_id": c.get("youtube_channel_id", ""),
         }
@@ -549,7 +517,7 @@ def trending_items(limit: int = 20, db: Session = Depends(get_db)):
         *[(r, "Blog")    for r in db.query(BlogPost).filter(BlogPost.detected_at >= since, BlogPost.trend_score >= 0.5, BlogPost.competitor.in_(names)).order_by(desc(BlogPost.trend_score)).limit(10).all()],
         *[(r, "Reddit")  for r in db.query(RedditMention).filter(RedditMention.detected_at >= since, RedditMention.trend_score >= 0.5, RedditMention.competitor.in_(names)).order_by(desc(RedditMention.trend_score)).limit(10).all()],
         *[(r, "SerpAPI") for r in db.query(SerpResult).filter(SerpResult.detected_at >= since, SerpResult.trend_score >= 0.5, SerpResult.competitor.in_(names)).order_by(desc(SerpResult.trend_score)).limit(10).all()],
-        *[(r, "YouTube") for r in db.query(YouTubeVideo).filter(YouTubeVideo.detected_at >= since, YouTubeVideo.trend_score >= 0.5, YouTubeVideo.competitor.in_(names)).order_by(desc(YouTubeVideo.trend_score)).limit(5).all()],
+*[(r, "YouTube") for r in db.query(YouTubeVideo).filter(YouTubeVideo.detected_at >= since, YouTubeVideo.trend_score >= 0.5, YouTubeVideo.competitor.in_(names)).order_by(desc(YouTubeVideo.trend_score)).limit(5).all()],
     ]:
         items.append({
             "platform":   platform,

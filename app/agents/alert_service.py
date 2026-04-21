@@ -232,20 +232,6 @@ def alert_new_youtube_video(competitor, title, url, views,
     ))
 
 
-def alert_new_ad(competitor, ad_id, body_preview, headline="", cta="",
-                 platform="Facebook", landing_url="", ad_type="", ad_summary=""):
-    if not get_alert_config().get("triggers", {}).get("new_ad_detected", True):
-        return
-    _buffer(competitor, "Meta Ads", dict(
-        competitor=competitor, platform=f"Meta Ads ({platform})",
-        title=headline or f"New ad from {competitor}",
-        url=landing_url or "#",
-        summary=ad_summary or body_preview[:200],
-        key_insights=f"CTA: {cta}" if cta else "",
-        why_it_matters=f"Ad type: {ad_type}. Monitor messaging strategy." if ad_type else "",
-        trend_score=0.5, importance="medium",
-    ))
-
 
 def alert_new_serp_result(competitor, result_type, title, url,
                           summary="", key_insights="", why_it_matters="",

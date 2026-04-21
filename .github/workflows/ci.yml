@@ -1,0 +1,144 @@
+# ============================================================
+# CI/CD Pipeline — Competitor Intelligence
+# ============================================================
+# Triggers:
+#   push / PR to main or develop  → runs tests + lint
+#   push to main                  → also builds & pushes Docker image
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   DOCKERHUB_USERNAME   your Docker Hub username
+#   DOCKERHUB_TOKEN      Docker Hub access token (not password)
+#
+# Optional secrets (copied to container env at deploy time):
+#   GROQ_API_KEY
+#   YOUTUBE_API_KEY
+#   DAGSHUB_USERNAME
+#   DAGSHUB_REPO_NAME
+#   DAGSHUB_TOKEN
+# ============================================================
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/competitor-intel
+
+jobs:
+
+  # ──────────────────────────────────────────────────────────
+  # Job 1: Lint + Test
+  # ──────────────────────────────────────────────────────────
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx ruff
+
+      - name: Lint (ruff)
+        run: |
+          ruff check app/ --select E,F,W --ignore E501
+        continue-on-error: false
+
+      - name: Create test env
+        run: |
+          cp .env.example .env 2>/dev/null || cat > .env << 'EOF'
+          GROQ_API_KEY=test_key
+          YOUTUBE_API_KEY=test_key
+          DAGSHUB_USERNAME=test
+          DAGSHUB_REPO_NAME=test
+          DAGSHUB_TOKEN=test
+          EOF
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
+        env:
+          TESTING: "1"
+
+  # ──────────────────────────────────────────────────────────
+  # Job 2: Build & Push Docker image (main branch only)
+  # ──────────────────────────────────────────────────────────
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image digest
+        run: echo "Pushed ${{ steps.meta.outputs.tags }}"
+
+  # ──────────────────────────────────────────────────────────
+  # Job 3: Deploy (optional — SSH into your server)
+  # Uncomment and configure if you have a server to deploy to.
+  # Requires secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_KEY
+  # ──────────────────────────────────────────────────────────
+
+  # deploy:
+  #   name: Deploy to Server
+  #   runs-on: ubuntu-latest
+  #   needs: build
+  #   if: github.ref == 'refs/heads/main'
+  #
+  #   steps:
+  #     - name: Deploy via SSH
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host: ${{ secrets.DEPLOY_HOST }}
+  #         username: ${{ secrets.DEPLOY_USER }}
+  #         key: ${{ secrets.DEPLOY_KEY }}
+  #         script: |
+  #           cd /opt/competitor-intel
+  #           docker compose pull
+  #           docker compose up -d --force-recreate app
+  #           docker image prune -f
