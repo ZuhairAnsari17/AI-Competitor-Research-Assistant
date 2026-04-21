@@ -1,23 +1,4 @@
-# ============================================================
-# CI/CD Pipeline — Competitor Intelligence
-# ============================================================
-# Triggers:
-#   push / PR to main or develop  → runs tests + lint
-#   push to main                  → also builds & pushes Docker image
-#
-# Required GitHub Secrets (Settings → Secrets → Actions):
-#   DOCKERHUB_USERNAME   your Docker Hub username
-#   DOCKERHUB_TOKEN      Docker Hub access token (not password)
-#
-# Optional secrets (copied to container env at deploy time):
-#   GROQ_API_KEY
-#   YOUTUBE_API_KEY
-#   DAGSHUB_USERNAME
-#   DAGSHUB_REPO_NAME
-#   DAGSHUB_TOKEN
-# ============================================================
-
-name: CI/CD
+name: CI/CD — Competitor Intelligence
 
 on:
   push:
@@ -30,9 +11,9 @@ env:
 
 jobs:
 
-  # ──────────────────────────────────────────────────────────
-  # Job 1: Lint + Test
-  # ──────────────────────────────────────────────────────────
+  # ================================
+  # Job 1 — Lint + Test
+  # ================================
   test:
     name: Lint & Test
     runs-on: ubuntu-latest
@@ -56,7 +37,6 @@ jobs:
       - name: Lint (ruff)
         run: |
           ruff check app/ --select E,F,W --ignore E501
-        continue-on-error: false
 
       - name: Create test env
         run: |
@@ -74,9 +54,9 @@ jobs:
         env:
           TESTING: "1"
 
-  # ──────────────────────────────────────────────────────────
-  # Job 2: Build & Push Docker image (main branch only)
-  # ──────────────────────────────────────────────────────────
+  # ================================
+  # Job 2 — Build & Push Docker Image
+  # ================================
   build:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
@@ -118,27 +98,39 @@ jobs:
       - name: Image digest
         run: echo "Pushed ${{ steps.meta.outputs.tags }}"
 
-  # ──────────────────────────────────────────────────────────
-  # Job 3: Deploy (optional — SSH into your server)
-  # Uncomment and configure if you have a server to deploy to.
-  # Requires secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_KEY
-  # ──────────────────────────────────────────────────────────
+  # ================================
+  # Job 3 — Deploy to Server
+  # ================================
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
 
-  # deploy:
-  #   name: Deploy to Server
-  #   runs-on: ubuntu-latest
-  #   needs: build
-  #   if: github.ref == 'refs/heads/main'
-  #
-  #   steps:
-  #     - name: Deploy via SSH
-  #       uses: appleboy/ssh-action@v1
-  #       with:
-  #         host: ${{ secrets.DEPLOY_HOST }}
-  #         username: ${{ secrets.DEPLOY_USER }}
-  #         key: ${{ secrets.DEPLOY_KEY }}
-  #         script: |
-  #           cd /opt/competitor-intel
-  #           docker compose pull
-  #           docker compose up -d --force-recreate app
-  #           docker image prune -f
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            set -e
+
+            echo "Starting deployment..."
+
+            cd /opt/competitor-intel
+
+            echo "Pulling latest images..."
+            docker compose pull
+
+            echo "Stopping old containers..."
+            docker compose down
+
+            echo "Starting new containers..."
+            docker compose up -d --force-recreate
+
+            echo "Cleaning old images..."
+            docker image prune -f
+
+            echo "Deployment complete!"
