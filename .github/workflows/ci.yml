@@ -119,7 +119,7 @@ jobs:
 
             echo "Starting deployment..."
 
-            cd /opt/AI-Competitor-Research-Assistant
+            cd ~/AI-Competitor-Research-Assistant
 
 
             echo "Pulling latest images..."
