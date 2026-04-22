@@ -21,6 +21,8 @@ from app.agents.alert_service import (
 )
 from app.evaluator.evaluator import run_evaluation
 
+load_dotenv()
+
 logger       = logging.getLogger(__name__)
 scheduler    = AsyncIOScheduler()
 poll_counter = 0
