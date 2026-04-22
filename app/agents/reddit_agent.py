@@ -55,12 +55,12 @@ def _fetch(url: str) -> list[dict]:
 
     entries = []
     for entry in root.findall(f"{{{ATOM_NS}}}entry"):
-        t   = entry.find(f"{{{ATOM_NS}}}title")
-        l   = entry.find(f"{{{ATOM_NS}}}link")
-        i   = entry.find(f"{{{ATOM_NS}}}id")
+        title_elem = entry.find(f"{{{ATOM_NS}}}title")
+        link_elem  = entry.find(f"{{{ATOM_NS}}}link")
+        id_elem    = entry.find(f"{{{ATOM_NS}}}id")
         upd = entry.find(f"{{{ATOM_NS}}}updated")
-        link     = l.get("href", "") if l is not None else ""
-        atom_id  = i.text or "" if i is not None else ""
+        link     = link_elem.get("href", "") if link_elem is not None else ""
+        atom_id  = id_elem.text or "" if id_elem is not None else ""
         created  = None
         if upd is not None and upd.text:
             try:
@@ -69,7 +69,7 @@ def _fetch(url: str) -> list[dict]:
                 pass
         entries.append({
             "post_id":    _post_id(atom_id, link),
-            "title":      (t.text or "No title").strip() if t is not None else "No title",
+            "title":      (title_elem.text or "No title").strip() if title_elem is not None else "No title",
             "url":        link,
             "subreddit":  _subreddit(link),
             "created_at": created,

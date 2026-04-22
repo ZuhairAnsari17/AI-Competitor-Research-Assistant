@@ -13,9 +13,6 @@ from sqlalchemy import func, desc
 from datetime import datetime, timedelta
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.core.aws_secrets import load_aws_secrets
-
-load_dotenv()
-
 from app.core.config import (
     get_config, get_competitors, get_active_competitor_names,
     invalidate_config_cache,
@@ -28,6 +25,7 @@ from app.core.scheduler import start_scheduler, stop_scheduler, run_all_agents
 from app.core.tracking import setup_mlflow
 from app.core.logging_config import setup_logging
 
+load_dotenv()
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -81,7 +79,6 @@ def health(db: Session = Depends(get_db)):
 
 @app.get("/api/summary", tags=["Dashboard"])
 def summary(db: Session = Depends(get_db)):
-    c = get_config()
     since_7d  = datetime.utcnow() - timedelta(days=7)
     since_30d = datetime.utcnow() - timedelta(days=30)
     names     = get_active_competitor_names()
@@ -421,7 +418,8 @@ def mlflow_stats(days: int = 30, db: Session = Depends(get_db)):
 
     daily_list = []
     for d in sorted(daily.values(), key=lambda x: x["date"]):
-        lc = d.pop("lat_count"); ls = d.pop("lat_sum")
+        lc = d.pop("lat_count")
+        ls = d.pop("lat_sum")
         d["avg_latency_ms"] = round(ls / lc, 1) if lc else 0
         daily_list.append(d)
 

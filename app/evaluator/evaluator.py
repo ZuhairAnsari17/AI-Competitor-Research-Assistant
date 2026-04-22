@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.core.config import get_competitors, get_config, get_settings
-from app.core.database import BlogPost, YouTubeVideo, RedditMention, AgentRun, EvalResult
+from app.core.database import BlogPost, AgentRun, EvalResult
 from groq import Groq
 import json
 
@@ -55,7 +55,7 @@ def run_evaluation(db: Session) -> dict:
         _save_eval(db, "sentiment_accuracy", accuracy, {})
 
         # 4. Alert precision — were alerts sent for genuinely new content?
-        new_unalerted = db.query(BlogPost).filter(BlogPost.alerted == False).count()
+        new_unalerted = db.query(BlogPost).filter(~BlogPost.alerted).count()
         precision = 1.0 if new_unalerted == 0 else round(1 - min(new_unalerted / 10, 1), 2)
         results["alert_precision"] = precision
         mlflow.log_metric("eval_alert_precision", precision)
@@ -75,7 +75,7 @@ def _spot_check_sentiment(db: Session, settings) -> float:
         return 0.5
     try:
         client = Groq(api_key=settings.groq_api_key)
-        posts = db.query(BlogPost).filter(BlogPost.sentiment_label != None).order_by(
+        posts = db.query(BlogPost).filter(BlogPost.sentiment_label.isnot(None)).order_by(
             BlogPost.detected_at.desc()).limit(5).all()
         if not posts:
             return 1.0
