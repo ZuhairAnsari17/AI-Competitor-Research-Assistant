@@ -6,8 +6,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm import Session
 
-load_dotenv()
-
 from app.core.config import get_config, get_competitors, invalidate_config_cache
 from app.core.database import SessionLocal, AgentRun, init_db
 from app.core.tracking import setup_mlflow
