@@ -119,7 +119,8 @@ jobs:
 
             echo "Starting deployment..."
 
-            cd /opt/competitor-intel
+            cd /opt/AI-Competitor-Research-Assistant
+
 
             echo "Pulling latest images..."
             docker compose pull
